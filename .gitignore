@@ -1,0 +1,19 @@
+# Build
+/TcpShow
+/tcpshow
+*.exe
+*.app
+*.dmg
+fyne-cross/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local certs (generated at runtime)
+*.pem
+*.key
+*.crt
+*.cer
