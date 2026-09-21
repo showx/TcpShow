@@ -23,6 +23,8 @@ go run .
 
 默认监听 `127.0.0.1:8888`。
 
+也可以直接打开项目里的 `TcpShow.app`（黑色底、橙色圆环的图标），Dock 和访达里都好看得到。
+
 打包成 Mac 应用：
 
 ```bash
@@ -33,19 +35,20 @@ fyne package -os darwin -name TcpShow
 ## 使用
 
 1. 启动 TcpShow，确认底部状态是「监听 127.0.0.1:8888」
-2. 点 **安装证书**，在钥匙串里把 `TcpShow CA` 设为「始终信任」（HTTPS 必须）
-3. 勾选 **系统代理**，或手动设置：
+2. 点 **安装证书**，在系统弹窗里输入本机密码。这一步会把 `TcpShow CA` 写进系统钥匙串并设为始终信任（只把证书加进钥匙串不够）
+3. 软件会同时打开 **系统代理**。然后**完全退出并重新打开浏览器**
+4. 若不想用系统代理，也可以手动：
 
 ```bash
 export http_proxy=http://127.0.0.1:8888
 export https_proxy=http://127.0.0.1:8888
-curl https://httpbingo.org/get
+curl --cacert "$HOME/Library/Application Support/TcpShow/ca.pem" https://example.com
 ```
 
-也可以只让某个 App / 浏览器走代理，不必开系统代理。
+也可以只让某个 App / 浏览器走代理。Firefox 要在浏览器里单独导入证书。
 
-4. 在左侧列表点一条记录，右侧看请求、响应
-5. 退出软件时会自动关掉它打开的系统代理
+5. 在左侧列表点一条记录，右侧看请求、响应
+6. 退出软件时会自动关掉它打开的系统代理
 
 ## 说明
 

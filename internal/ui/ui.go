@@ -40,9 +40,10 @@ type App struct {
 	respBody    *widget.Entry
 	urlLabel    *widget.Label
 
-	view      []*store.Session
-	selected  *store.Session
-	sysOn     bool
+	view       []*store.Session
+	selected   *store.Session
+	sysOn      bool
+	certOK     bool
 	refreshing atomic.Bool
 }
 
@@ -83,6 +84,7 @@ func Setup(w fyne.Window) {
 		w.Close()
 	})
 	st.OnChange(a.scheduleRefresh)
+	a.certOK = sysproxy.CertTrusted()
 	a.startProxy()
 	a.syncStartBtn()
 }
@@ -279,14 +281,34 @@ func (a *App) installCert() {
 		return
 	}
 	path := a.issuer.CertPEMPath()
-	if err := sysproxy.OpenCert(path); err != nil {
-		dialog.ShowError(err, a.win)
+	if sysproxy.CertTrusted() {
+		a.onCertReady(path)
 		return
 	}
-	msg := "已打开 CA 证书：\n" + path + "\n\n" +
-		"macOS：钥匙串访问 → 双击 TcpShow CA → 信任 → 使用此证书时 = 始终信任\n\n" +
-		"之后 HTTPS 才能被解密显示。"
-	dialog.ShowInformation("安装 CA 证书", msg, a.win)
+	go func() {
+		err := sysproxy.TrustCert(path)
+		fyne.Do(func() {
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("信任证书失败：%v\n\n也可以手动：钥匙串访问 → 系统 → TcpShow CA → 信任 → 始终信任", err), a.win)
+				a.refreshStatus()
+				return
+			}
+			a.onCertReady(path)
+		})
+	}()
+}
+
+func (a *App) onCertReady(path string) {
+	a.certOK = true
+	if !a.sysOn && a.proxy != nil && a.proxy.Running() {
+		a.sysCheck.SetChecked(true)
+	}
+	a.refreshStatus()
+	dialog.ShowInformation("证书已就绪",
+		"TcpShow CA 已设为系统信任的根证书，系统代理已打开。\n\n"+
+			"请完全退出并重新打开浏览器，再访问 https 网站。\n\n"+
+			"Firefox 不使用系统钥匙串，需要在 Firefox 里单独导入：\n"+path,
+		a.win)
 }
 
 func (a *App) copyCurl() {
@@ -362,7 +384,11 @@ func (a *App) refreshStatus() {
 	if a.sysOn {
 		sys = "  ·  系统代理已开"
 	}
-	a.status.SetText(fmt.Sprintf("%s  ·  %s  ·  %d 条%s", state, rec, a.store.Len(), sys))
+	cert := "证书未信任"
+	if a.certOK {
+		cert = "证书已信任"
+	}
+	a.status.SetText(fmt.Sprintf("%s  ·  %s  ·  %s  ·  %d 条%s", state, rec, cert, a.store.Len(), sys))
 }
 
 func (a *App) shutdown() {

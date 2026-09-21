@@ -124,31 +124,49 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "proxy hijack not supported", http.StatusInternalServerError)
 		return
 	}
-	clientConn, _, err := hj.Hijack()
+	raw, buf, err := hj.Hijack()
 	if err != nil {
 		return
 	}
+	_ = raw.SetDeadline(time.Time{})
+	clientConn := net.Conn(raw)
+	if buf != nil && buf.Reader.Buffered() > 0 {
+		clientConn = &prefixConn{Conn: raw, r: io.MultiReader(io.LimitReader(buf, int64(buf.Reader.Buffered())), raw)}
+	}
 	_, _ = clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
 
-	host := r.Host
-	if !strings.Contains(host, ":") {
-		host = net.JoinHostPort(host, "443")
-	}
+	host := destHostPort(r.Host)
 	serverName, _, err := net.SplitHostPort(host)
 	if err != nil {
 		serverName = r.Host
 	}
 
-	cert, err := p.issuer.Cert(serverName)
-	if err != nil {
-		_ = clientConn.Close()
-		return
-	}
 	tlsClient := tls.Server(clientConn, &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"http/1.1"},
+		GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			name := chi.ServerName
+			if name == "" {
+				name = serverName
+			}
+			c, err := p.issuer.Cert(name)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+		NextProtos: []string{"http/1.1"},
+		MinVersion: tls.VersionTLS12,
 	})
 	if err := tlsClient.Handshake(); err != nil {
+		p.store.Add(&store.Session{
+			Scheme:  "https",
+			Method:  http.MethodConnect,
+			Host:    serverName,
+			Path:    "/",
+			URL:     "https://" + host,
+			Error:   "TLS 握手失败: " + err.Error() + "（CA 未被系统信任，请点「安装证书」并输入密码）",
+			Start:   time.Now(),
+			ReqSize: 0,
+		})
 		_ = clientConn.Close()
 		return
 	}
@@ -167,6 +185,20 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 		p.serveMITM(tlsClient, req)
 	}
+}
+
+type prefixConn struct {
+	net.Conn
+	r io.Reader
+}
+
+func (c *prefixConn) Read(p []byte) (int, error) { return c.r.Read(p) }
+
+func destHostPort(host string) string {
+	if _, _, err := net.SplitHostPort(host); err == nil {
+		return host
+	}
+	return net.JoinHostPort(host, "443")
 }
 
 func (p *Proxy) serveMITM(client io.Writer, r *http.Request) {

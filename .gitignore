@@ -5,6 +5,7 @@
 *.app
 *.dmg
 fyne-cross/
+/build/
 
 # IDE / OS
 .DS_Store

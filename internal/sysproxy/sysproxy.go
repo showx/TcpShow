@@ -50,6 +50,51 @@ func OpenCert(path string) error {
 	}
 }
 
+const CAName = "TcpShow CA"
+
+// TrustCert installs the CA as a trusted system root. On macOS this prompts for the admin password.
+func TrustCert(certPath string) error {
+	if runtime.GOOS != "darwin" {
+		return OpenCert(certPath)
+	}
+	if CertTrusted() {
+		return nil
+	}
+	script := fmt.Sprintf(
+		`do shell script "security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s" with administrator privileges`,
+		shellQuote(certPath),
+	)
+	out, err := exec.Command("osascript", "-e", script).CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("%s", msg)
+	}
+	return nil
+}
+
+func CertTrusted() bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+	for _, args := range [][]string{
+		{"security", "dump-trust-settings"},
+		{"security", "dump-trust-settings", "-d"},
+	} {
+		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+		if err == nil && strings.Contains(string(out), CAName) {
+			return true
+		}
+	}
+	return false
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
 func defaultService() (string, error) {
 	out, err := exec.Command("networksetup", "-listallnetworkservices").Output()
 	if err != nil {
