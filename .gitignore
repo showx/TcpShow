@@ -1,4 +1,5 @@
 # Build
+/target
 /TcpShow
 /tcpshow
 *.exe
