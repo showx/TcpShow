@@ -51,7 +51,9 @@ pub fn render(
             filename: None,
             body: home_html(&endpoint).into_bytes(),
         },
-        Page::Cert => cert_document(cert_der, "application/x-x509-ca-cert", Some("TcpShow-CA.crt"), false, None),
+        Page::Cert => {
+            cert_document(cert_der, "application/x-x509-ca-cert", Some("TcpShow-CA.cer"), false, None)
+        }
         Page::Pem => cert_document(
             cert_pem.map(str::as_bytes),
             "application/x-pem-file",
@@ -209,17 +211,19 @@ fn home_html(endpoint: &Endpoint) -> String {
   body {{ margin:0; padding:24px; background:#111; color:#f4f4f5; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }}
   .note {{ background:#3a2a14; color:#f6d7a8; border-radius:12px; padding:12px 14px; }}
   h1 {{ color:#e56b1a; font-size:32px; margin:0 0 8px; }}
-  p {{ line-height:1.5; }}
+  h2 {{ font-size:22px; margin:28px 0 8px; }}
+  p, li {{ line-height:1.55; }}
   .box {{ background:#1c1c1e; border-radius:16px; padding:16px 18px; margin:16px 0; }}
   .label {{ color:#a1a1aa; font-size:14px; }}
   .big {{ font-size:34px; font-weight:700; margin:2px 0 12px; word-break:break-all; }}
   a.btn {{ display:block; background:#e56b1a; color:#111; text-align:center; text-decoration:none; font-weight:700; padding:16px; border-radius:14px; margin:10px 0; font-size:18px; }}
   a.secondary {{ background:#2c2c30; color:#fff; }}
-  ol {{ padding-left:20px; }}
-  li {{ margin:10px 0; }}
+  ol {{ padding-left:22px; }}
+  li {{ margin:12px 0; }}
+  .warn {{ color:#f6d7a8; }}
 </style>
 <h1>TcpShow</h1>
-<p class="note">用系统相机打开本页，不要用微信。先装证书，先不要改手机代理。</p>
+<p class="note">用系统相机打开本页，不要用微信。先装证书，确认装上了，再改手机代理。代理填错或开太早，这个页面会打不开。</p>
 <p>手机和电脑要在同一个 Wi-Fi。</p>
 <div class="box">
   <div class="label">服务器</div>
@@ -227,14 +231,38 @@ fn home_html(endpoint: &Endpoint) -> String {
   <div class="label">端口</div>
   <div class="big">{port}</div>
 </div>
-<a class="btn" href="/ios">iPhone：安装描述文件</a>
+<a class="btn" href="/ios">iPhone：下载描述文件</a>
 <a class="btn secondary" href="/cert.crt">Android：下载证书</a>
+
+<h2>iPhone</h2>
 <ol>
-  <li>iPhone 安装描述文件后，打开「设置 → 通用 → 关于本机 → 证书信任设置」，启用 TcpShow CA。</li>
-  <li>Android 到系统设置里安装刚下载的证书。Android 7 以上，很多 App 不信任用户证书，Chrome 可以。</li>
-  <li>最后才把无线局域网的 HTTP 代理改成手动。服务器填 {ip}，端口填 {port}。Android 在 WLAN 的高级选项里改。</li>
-  <li>完全关掉再打开浏览器。电脑上的 TcpShow 会出现手机的请求。</li>
+  <li>点上面的「下载描述文件」。Safari 只会说「已下载描述文件」，这时还没装上。</li>
+  <li>打开「设置 → 通用 → VPN 与设备管理」。旧系统里叫「描述文件」或「描述文件与设备管理」。点 TcpShow CA → 安装，输入锁屏密码。</li>
+  <li>再打开「设置 → 通用 → 关于本机 → 证书信任设置」，把 TcpShow CA 的开关打开。这一步不做，HTTPS 网站打不开。</li>
+  <li>打开「设置 → 无线局域网」，点当前 Wi-Fi 右边的 ⓘ → 配置代理 → 手动。服务器填 {ip}，端口填 {port}。不要打开「鉴定」。</li>
+  <li>如果开了 iCloud 专用代理，到「设置 → Apple ID → iCloud → 专用代理」先关掉，否则有些流量不经过 TcpShow。</li>
+  <li>把 Safari 从后台划掉，再打开一个网站。电脑上的 TcpShow 会出现请求。</li>
 </ol>
+
+<h2>Android</h2>
+<p class="warn">下载完不要点通知栏或文件管理器里的证书。那样会提示安装不了。这个文件是 CA 根证书，没有私钥，不能当「VPN 和应用用户证书」来装。</p>
+<ol>
+  <li>点上面的「下载证书」，等 TcpShow-CA.cer 进「下载」文件夹。先不要改 Wi-Fi 代理。</li>
+  <li>打开系统设置，找到「加密与凭据」或「凭据存储」，点「安装证书」，一定选「CA 证书」。不要选「VPN 和应用用户证书」。</li>
+  <li>系统会警告流量可能被监控，点「仍然安装」，再选刚下载的 TcpShow-CA.cer。</li>
+  <li>装好后到「可信凭据 → 用户」里应能看到 TcpShow CA。看不到就是没装上。</li>
+  <li>打开 WLAN，长按当前 Wi-Fi → 修改网络 → 高级选项 → 代理 → 手动。主机名填 {ip}，端口填 {port}，保存。</li>
+  <li>用 Chrome 打开一个网站。Android 7 以上，很多 App 不信任用户安装的证书，Chrome 可以。银行类 App 通常抓不到 HTTPS。</li>
+</ol>
+<p>各品牌进「安装证书」的常见位置：</p>
+<ul>
+  <li>原生 / 像素：设置 → 安全性和隐私 → 更多安全和隐私设置 → 加密与凭据 → 安装证书 → CA 证书</li>
+  <li>小米 / 红米：设置 → 密码与安全 → 隐私 → 更多安全设置 → 加密与凭据 → 安装证书 → CA 证书</li>
+  <li>华为 / 荣耀：设置 → 安全 → 更多安全设置 → 加密和凭据 → 从存储设备安装 → CA 证书</li>
+  <li>三星：设置 → 安全与隐私 → 其他安全设置 → 从设备存储安装 → CA 证书</li>
+  <li>OPPO / 一加 / realme：设置 → 密码与安全 → 系统安全 → 凭据存储 → 安装证书 → CA 证书</li>
+  <li>vivo / iQOO：设置 → 安全 → 更多安全设置 → 加密与凭据 → 安装证书 → CA 证书</li>
+</ul>
 "#,
         ip = endpoint.ip,
         port = endpoint.port,

@@ -1148,13 +1148,30 @@ impl TcpShowApp {
                 }
             }
             ui.add_space(12.0);
-            ui.label(RichText::new("按这个顺序").strong());
-            ui.label("1. 用系统相机扫二维码，打开安装页。");
-            ui.label("2. iPhone 安装描述文件，再到「设置 → 通用 → 关于本机 → 证书信任设置」，打开 TcpShow CA。");
-            ui.label("3. Android 下载证书，再到系统设置里安装。很多 App 不信任用户证书，Chrome 可以。");
-            ui.label("4. 如果 Mac 问是否允许传入连接，选允许。");
-            ui.label("5. 最后才把手机 Wi-Fi 的 HTTP 代理改成手动，服务器和端口分开填。");
-            ui.label("6. 关掉再打开手机浏览器。左边出现请求后，点一条就能看详情。");
+            ui.label("用系统相机扫二维码。先在手机上打开安装页，照页面做。如果 Mac 问是否允许传入连接，选允许。");
+            ui.add_space(8.0);
+            ui.label(RichText::new("iPhone").strong());
+            ui.label("1. 点「下载描述文件」。Safari 说「已下载描述文件」时，还没装上。");
+            ui.label("2. 设置 → 通用 → VPN 与设备管理（旧系统叫「描述文件」）→ TcpShow CA → 安装。");
+            ui.label("3. 设置 → 通用 → 关于本机 → 证书信任设置，打开 TcpShow CA。不打开的话，HTTPS 打不开。");
+            ui.label("4. 设置 → 无线局域网 → 当前网络右边的 ⓘ → 配置代理 → 手动。服务器和端口分开填，不要开「鉴定」。");
+            ui.label("5. 若开了 iCloud 专用代理，先关掉。然后把 Safari 划掉重开。");
+            ui.add_space(8.0);
+            ui.label(RichText::new("Android").strong());
+            ui.colored_label(AMBER, "下载完不要直接点那个文件。点了会提示安装不了。");
+            ui.label("1. 在安装页点「下载证书」，文件名是 TcpShow-CA.cer，先不要改 Wi-Fi 代理。");
+            ui.label("2. 到系统设置里找「加密与凭据」或「凭据存储」→ 安装证书 → 一定选「CA 证书」。");
+            ui.label("3. 不要选「VPN 和应用用户证书」。那个要私钥，这个根证书没有，所以会装失败。");
+            ui.label("4. 警告页点「仍然安装」，再去「下载」文件夹选 TcpShow-CA.cer。");
+            ui.label("5. 到「可信凭据 → 用户」里能看到 TcpShow CA，才算装上。");
+            ui.label("6. WLAN 里长按当前 Wi-Fi → 修改网络 → 高级选项 → 代理 → 手动。主机名填服务器，端口填端口。");
+            ui.label("7. 用 Chrome 打开网站。很多 App 不信任用户证书，Chrome 可以。");
+            ui.add_space(6.0);
+            ui.label("小米：设置 → 密码与安全 → 更多安全设置 → 加密与凭据 → CA 证书");
+            ui.label("华为：设置 → 安全 → 更多安全设置 → 加密和凭据 → 从存储设备安装");
+            ui.label("三星：设置 → 安全与隐私 → 其他安全设置 → 从设备存储安装 → CA 证书");
+            ui.label("OPPO：设置 → 密码与安全 → 系统安全 → 凭据存储 → CA 证书");
+            ui.label("vivo：设置 → 安全 → 更多安全设置 → 加密与凭据 → CA 证书");
             ui.add_space(8.0);
             ui.label(RichText::new("关掉「手机抓包」后，手机就连不过来了。").color(Color32::from_gray(170)));
         });
